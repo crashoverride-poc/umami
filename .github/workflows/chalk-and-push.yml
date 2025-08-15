@@ -132,6 +132,8 @@ jobs:
           push: ${{ inputs.push }}
           sbom: true
           provenance: true
+          build-args: |
+            DATABASE_TYPE=postgresql
           tags: |
             ${{ secrets.AWS_ECR_PREFIX }}/umami/${{matrix.file_tag.tag_suffix }}:${{ inputs.version }}
             ${{ secrets.AWS_ECR_PREFIX }}/umami/${{matrix.file_tag.tag_suffix }}:latest
