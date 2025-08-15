@@ -1,0 +1,67 @@
+name: Weekly Production Build
+
+on:
+  schedule:
+    # Run every Wednesday at 2:00 PM UTC
+    - cron: "0 14 * * 3"
+  workflow_dispatch:
+
+jobs:
+  retag-prod-images:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - umami
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Assume AWS Role
+        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 #v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: WeeklyProdBuild
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 #v2.0.1
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Retag dev image as prod
+        run: |
+          IMAGE="${{ secrets.AWS_ECR_PREFIX }}/umami/${{ matrix.service }}:dev"
+
+          # Get the manifest using buildx
+          docker buildx imagetools inspect --raw "$IMAGE" > manifest.json
+
+          if [ -s manifest.json ]; then
+
+            #   batch-delete-image
+            # Deletes a list of specified images within a repository. Images are
+            # specified with either an imageTag or imageDigest .
+            # You can remove a tag from an image by specifying the image's tag in
+            # your request. When you remove the last tag from an image, the image is
+            # deleted from your repository.
+            aws ecr batch-delete-image \
+              --repository-name "umami/${{ matrix.service }}" \
+              --image-ids imageTag=prod || true
+
+            # Apply prod tag
+            aws ecr put-image \
+              --repository-name "umami/${{ matrix.service }}" \
+              --image-tag prod \
+              --image-manifest "file://manifest.json"
+            echo "Successfully retagged ${{ matrix.service }}:dev to prod"
+          else
+            echo "No dev image found for ${{ matrix.service }}"
+          fi
+
