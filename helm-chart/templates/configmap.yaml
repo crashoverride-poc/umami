@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "umami.fullname" . }}-config
+  labels:
+    {{- include "umami.labels" . | nindent 4 }}
+data:
+  DATABASE_TYPE: {{ .Values.umami.databaseType | quote }}
+  DISABLE_TELEMETRY: {{ .Values.umami.disableTelemetry | quote }}
+  REMOVE_TRAILING_SLASH: {{ .Values.umami.removeTrailingSlash | quote }}
+  TRACKER_SCRIPT_NAME: {{ .Values.umami.trackerScriptName | quote }}
+  FORCE_SSL: {{ .Values.umami.forceSSL | quote }}
+  {{- range $key, $value := .Values.umami.env }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
