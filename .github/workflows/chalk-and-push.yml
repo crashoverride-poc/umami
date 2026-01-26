@@ -122,6 +122,15 @@ jobs:
             [worker.oci]
             max-parallelism = 2
 
+      - name: Fix Turbopack memory issue
+        if: steps.check_changes.outputs.skip == 'false'
+        run: |
+          # Turbopack (next build --turbo) causes memory issues on GitHub Actions runners
+          # Use standard webpack build instead
+          sed -i 's/next build --turbo/next build/' package.json
+          echo "Patched package.json to use webpack instead of Turbopack"
+          grep "build-app" package.json
+
       - name: Build and push umami images
         if: steps.check_changes.outputs.skip == 'false'
         uses: docker/build-push-action@v6.15.0
